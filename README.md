@@ -19,8 +19,8 @@ Customize the endpoint, specify a model, etc.
 builder.Services.AddPredictionGuardClient(config["ApiKey"], options =>
     {
         options.Endpoint = new Uri(config["Endpoint"]);
-    })
-        .UseModel(config["Model"]);
+        options.Model = config["Model"];
+    });
 ```
 
 ### Retrieve the PredictionGuard Client from the Service Container
@@ -34,7 +34,6 @@ var responseText = await predictionGuardClient.CompleteAsync(input);
 ```
 
 ### Generate Chat Completions with Streaming
-
 ```csharp
 await foreach (var chunk in predictionGuardClient.CompleteStreamingAsync(input))
 {

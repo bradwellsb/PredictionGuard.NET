@@ -6,11 +6,12 @@ namespace PredictionGuard.Config
     {
         public string ApiKey { get; set; }
         public Uri Endpoint { get; set; }
-        public string Model { get; set; } = "Hermes-3-Llama-3.1-8B"; //default model if not specified
+        public string Model { get; set; }
     }
 
     public class PredictionGuardConfigureOptions
     {
         public Uri Endpoint { get; set; } = new Uri("https://api.predictionguard.com");
+        public string Model { get; set; } = "Hermes-3-Llama-3.1-8B"; //default model if not specified
     }
 }

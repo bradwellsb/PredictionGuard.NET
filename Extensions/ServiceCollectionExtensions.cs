@@ -20,6 +20,7 @@ namespace PredictionGuardFunctionCalling.Extensions
             {
                 options.ApiKey = apiKey;
                 options.Endpoint = configureOptionsInstance.Endpoint;
+                options.Model = configureOptionsInstance.Model;
             });
 
             services.AddHttpClient();
@@ -29,18 +30,6 @@ namespace PredictionGuardFunctionCalling.Extensions
                 var options = sp.GetRequiredService<IOptions<PredictionGuardClientOptions>>().Value;
                 var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
                 return new PredictionGuardClient(options, httpClientFactory);
-            });
-            return services;
-        }
-
-        public static IServiceCollection UseModel(this IServiceCollection services, string model)
-        {
-            services.Configure<PredictionGuardClientOptions>(options =>
-            {
-                if (!string.IsNullOrEmpty(model))
-                {
-                    options.Model = model;
-                }
             });
             return services;
         }
