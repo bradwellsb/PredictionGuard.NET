@@ -28,8 +28,8 @@ public class PredictionGuardClient
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
     }
 
-    public async IAsyncEnumerable<string> CompleteStreamingAsync(string userInput, ChatOptions options = null)
-    {        
+    public async IAsyncEnumerable<ChatCompletionResult> CompleteStreamingAsync(string userInput, ChatOptions options = null)
+    {
         if (EnableFunctionInvocation && !_messages.Any(m => m.Role == ChatRole.System))
         {
             _messages.Add(ToolBuilder.CreateSystemMessage(options?.Tools));
@@ -76,30 +76,34 @@ public class PredictionGuardClient
                         if (choice.Delta != null && choice.Delta.Content != null)
                         {
                             responseText.Append(choice.Delta.Content);
-                            yield return choice.Delta.Content;
-
-                            if (EnableFunctionInvocation)
+                            yield return new ChatCompletionResult
                             {
-                                var result = CheckForFunctionCall(responseText.ToString(), options);
-                                if (result != null)
-                                {
-                                    if(result is string)
-                                    {
-                                        yield return result as string;
-                                    }
-                                    yield break;
-                                }
-                            }
+                                Type = ChatCompletionResponseType.Text,
+                                Text = choice.Delta.Content
+                            };
                         }
                     }
                 }
             }
         }
 
+        if (EnableFunctionInvocation)
+        {
+            var results = CheckForFunctionCalls(responseText.ToString(), options);
+            if (results.Count > 0)
+            {
+                yield return new ChatCompletionResult
+                {
+                    Type = ChatCompletionResponseType.Function,
+                    FunctionResults = results
+                };
+            }
+        }
+
         _messages.Add(new ChatMessage(ChatRole.Assistant, responseText.ToString()));
     }
 
-    public async Task<object> CompleteAsync(string userInput, ChatOptions options = null)
+    public async Task<ChatCompletionResult> CompleteAsync(string userInput, ChatOptions options = null)
     {
         if (EnableFunctionInvocation && !_messages.Any(m => m.Role == ChatRole.System))
         {
@@ -125,21 +129,23 @@ public class PredictionGuardClient
             Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
         };
 
-        var response = await _httpClient.SendAsync(httpRequest);
-        response.EnsureSuccessStatusCode();
+        var httpResponse = await _httpClient.SendAsync(httpRequest);
+        httpResponse.EnsureSuccessStatusCode();
 
-        var responseText = await response.Content.ReadAsStringAsync();
+        var responseText = await httpResponse.Content.ReadAsStringAsync();
         var result = ProcessResponse(responseText, options);
 
-        //if result is string, add to messages
-        if (result is string)
-            _messages.Add(new ChatMessage(ChatRole.Assistant, result as string));
+        if (result.Type == ChatCompletionResponseType.Text)
+            _messages.Add(new ChatMessage(ChatRole.Assistant, result.Text));
+
         return result;
     }
 
-    private object ProcessResponse(string responseText, ChatOptions options)
+
+    private ChatCompletionResult ProcessResponse(string responseText, ChatOptions options)
     {
         var completionResponse = JsonSerializer.Deserialize<ChatCompletion>(responseText);
+        var chatCompletionResult = new ChatCompletionResult();
 
         if (completionResponse != null && completionResponse.Choices != null)
         {
@@ -149,23 +155,35 @@ public class PredictionGuardClient
                 {
                     if (EnableFunctionInvocation)
                     {
-                        var result = CheckForFunctionCall(choice.Message.Content, options);
-                        if (result != null) return result;
+                        var results = CheckForFunctionCalls(choice.Message.Content, options);
+                        if (results.Count > 0) //at least one non-void function called
+                        {
+                            chatCompletionResult.Type = ChatCompletionResponseType.Function;
+                            chatCompletionResult.FunctionResults = results;
+                            return chatCompletionResult;
+                        }
                     }
 
-                    return choice.Message.Content;
+                    chatCompletionResult.Type = ChatCompletionResponseType.Text;
+                    chatCompletionResult.Text = choice.Message.Content;
+                    return chatCompletionResult; //no functions called, return the message content
                 }
             }
         }
-        return string.Empty;
+
+        chatCompletionResult.Type = ChatCompletionResponseType.Text;
+        chatCompletionResult.Text = string.Empty;
+        return chatCompletionResult;
     }
 
-    private object CheckForFunctionCall(string content, ChatOptions options)
+    private List<object> CheckForFunctionCalls(string content, ChatOptions options)
     {
-        var functionCallMatch = Regex.Match(content, @"<tool_call>(.*?)</tool_call>", RegexOptions.Singleline);
-        if (functionCallMatch.Success)
+        var functionCalls = new List<object>();
+        var functionCallMatches = Regex.Matches(content, @"<tool_call>(.*?)</tool_call>", RegexOptions.Singleline);
+
+        foreach (Match match in functionCallMatches)
         {
-            var functionCallJson = functionCallMatch.Groups[1].Value.Replace("\\n", "").Trim();
+            var functionCallJson = match.Groups[1].Value.Replace("\\n", "").Trim();
             var functionCall = JsonSerializer.Deserialize<FunctionCall>(functionCallJson);
 
             if (functionCall != null)
@@ -173,11 +191,12 @@ public class PredictionGuardClient
                 var result = InvokeTool(functionCall, options?.Tools);
                 if (result != null)
                 {
-                    return result;
+                    functionCalls.Add(result);
                 }
             }
         }
-        return null;
+
+        return functionCalls;
     }
 
     private object InvokeTool(FunctionCall functionCall, List<MethodInfo> toolMethods)
