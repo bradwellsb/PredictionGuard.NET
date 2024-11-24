@@ -73,9 +73,8 @@ namespace PredictionGuard.Services
             var toolsJson = JsonSerializer.Serialize(tools, new JsonSerializerOptions { WriteIndented = true });
 
             var systemContent = $@"
-You are a function-calling AI assistant. You have access to the following functions:
-{toolsJson}
-Use the following JSON schema for function calls:
+You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools>{toolsJson}</tools>
+Use the following pydantic model json schema for each tool call you will make:
 {{
     ""title"": ""FunctionCall"",
     ""type"": ""object"",
@@ -85,12 +84,10 @@ Use the following JSON schema for function calls:
     }},
     ""required"": [""arguments"", ""name""]
 }}
-When you need to call a function, output a JSON object within `function_call` tags as follows:
-`function_call`
-{{
-    ""name"": ""<function_name>"", ""arguments"": <args_dict>
-}}
-`function_call`
+For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{{""name"": ""<function_name>"", ""arguments"": <args_dict>}}
+</tool_call>
 ";
 
             return new ChatMessage(ChatRole.System, systemContent);

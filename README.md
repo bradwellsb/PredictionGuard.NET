@@ -1,6 +1,6 @@
 # PredictionGuard.NET Class Library
 
-The PredictionGuard.NET class library provides a .NET Standard 2.1 wrapper for the PredictionGuard API. The library supports the chat completions endpoint (with and without streaming), including function calling.
+PredictionGuard.NET is a .NET Standard 2.1 wrapper for the PredictionGuard API. The library supports the chat completions endpoint (with and without streaming), including function calling.
 
 ## Features
 
@@ -77,12 +77,4 @@ static string GetWeather(string location)
 {
     return Random.Shared.NextDouble() > 0.5 ? $"It's sunny in {location}" : $"It's raining in {location}";
 }
-```
-
-## Note
-To avoid runtime errors when referencing the PredictionGuard.NET library as a .dll in your project, ensure that all necessary dependencies are included.
-```
-<ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
-</ItemGroup>
 ```

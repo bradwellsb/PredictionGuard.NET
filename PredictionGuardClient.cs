@@ -162,7 +162,7 @@ public class PredictionGuardClient
 
     private object CheckForFunctionCall(string content, ChatOptions options)
     {
-        var functionCallMatch = Regex.Match(content, @"`function_call`(.*?)`function_call`", RegexOptions.Singleline);
+        var functionCallMatch = Regex.Match(content, @"<tool_call>(.*?)</tool_call>", RegexOptions.Singleline);
         if (functionCallMatch.Success)
         {
             var functionCallJson = functionCallMatch.Groups[1].Value.Replace("\\n", "").Trim();

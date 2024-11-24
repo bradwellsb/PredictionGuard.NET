@@ -1,10 +1,36 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+	  <Version>0.0.1</Version>
+	  <AssemblyVersion>0.0.1.0</AssemblyVersion>
+	  <FileVersion>0.0.1.0</FileVersion>
+	  <GeneratePackageOnBuild>True</GeneratePackageOnBuild>	  
+	  <PackageReadmeFile>README.md</PackageReadmeFile>
+	  <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+	  <PackageProjectUrl>https://github.com/bradwellsb/PredictionGuard.NET</PackageProjectUrl>
+	  <RepositoryUrl>https://github.com/bradwellsb/PredictionGuard.NET</RepositoryUrl>
+	  <RepositoryType>git</RepositoryType>	  
+	  <PackageId>PredictionGuard.NET</PackageId>
+	  <Product>PredictionGuard.NET</Product>
+	  <Title>PredictionGuard.NET</Title>
+	  <Description>PredictionGuard.NET is a wrapper for the PredictionGuard API.</Description>
+	  <Authors>Bradley Wells</Authors>
+	  <Company>wellsb</Company>
+	  <Copyright>Copyright (c) 2024 Bradley WELLS</Copyright>	    
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Update="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 </Project>
