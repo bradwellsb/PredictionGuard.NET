@@ -72,6 +72,7 @@ var predictionGuardClient = app.Services.GetRequiredService<PredictionGuardClien
 
 var responseText = await predictionGuardClient.CompleteAsync("Do I need an umbrella in Nantes?", chatOptions);
 
+[Description("Gets the weather")]
 static string GetWeather(string location)
 {
     return Random.Shared.NextDouble() > 0.5 ? $"It's sunny in {location}" : $"It's raining in {location}";
