@@ -83,7 +83,10 @@ public class PredictionGuardClient
                                 var result = CheckForFunctionCall(responseText.ToString(), options);
                                 if (result != null)
                                 {
-                                    yield return result;
+                                    if(result is string)
+                                    {
+                                        yield return result as string;
+                                    }
                                     yield break;
                                 }
                             }
@@ -96,7 +99,7 @@ public class PredictionGuardClient
         _messages.Add(new ChatMessage(ChatRole.Assistant, responseText.ToString()));
     }
 
-    public async Task<string> CompleteAsync(string userInput, ChatOptions options = null)
+    public async Task<object> CompleteAsync(string userInput, ChatOptions options = null)
     {
         if (EnableFunctionInvocation && !_messages.Any(m => m.Role == ChatRole.System))
         {
@@ -128,11 +131,13 @@ public class PredictionGuardClient
         var responseText = await response.Content.ReadAsStringAsync();
         var result = ProcessResponse(responseText, options);
 
-        _messages.Add(new ChatMessage(ChatRole.Assistant, result));
+        //if result is string, add to messages
+        if (result is string)
+            _messages.Add(new ChatMessage(ChatRole.Assistant, result as string));
         return result;
     }
 
-    private string ProcessResponse(string responseText, ChatOptions options)
+    private object ProcessResponse(string responseText, ChatOptions options)
     {
         var completionResponse = JsonSerializer.Deserialize<ChatCompletion>(responseText);
 
@@ -155,7 +160,7 @@ public class PredictionGuardClient
         return string.Empty;
     }
 
-    private string CheckForFunctionCall(string content, ChatOptions options)
+    private object CheckForFunctionCall(string content, ChatOptions options)
     {
         var functionCallMatch = Regex.Match(content, @"`function_call`(.*?)`function_call`", RegexOptions.Singleline);
         if (functionCallMatch.Success)
@@ -175,7 +180,7 @@ public class PredictionGuardClient
         return null;
     }
 
-    private string InvokeTool(FunctionCall functionCall, List<MethodInfo> toolMethods)
+    private object InvokeTool(FunctionCall functionCall, List<MethodInfo> toolMethods)
     {
         var method = toolMethods?.FirstOrDefault(m => m.Name == functionCall.Name);
         if (method != null)
@@ -216,7 +221,7 @@ public class PredictionGuardClient
             }
 
             var result = method.Invoke(instance, args);
-            return result?.ToString();
+            return result;
         }
         return null;
     }
