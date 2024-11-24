@@ -23,9 +23,25 @@ builder.Services.AddPredictionGuardClient(config["ApiKey"], options =>
     });
 ```
 
-### Retrieve the PredictionGuard Client from the Service Container
+### Retrieve the PredictionGuard Client from the Service Container through dependency injection
+Console Application
 ```csharp
 var predictionGuardClient = app.Services.GetRequiredService<PredictionGuardClient>();
+```
+
+Blazor
+```csharp
+@inject PredictionGuardClient PredictionGuardClient
+```
+
+API controller
+```csharp
+private readonly PredictionGuardClient _predictionGuardClient;
+
+public MyController(PredictionGuardClient predictionGuardClient)
+{
+    _predictionGuardClient = predictionGuardClient;
+}
 ```
 
 ### Generate Chat Completions
