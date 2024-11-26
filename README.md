@@ -58,23 +58,36 @@ await foreach (var chunk in predictionGuardClient.CompleteStreamingAsync(input))
 ```
 
 ### Enable Function Calling and Make Tools Available
+The library is capable of invoking one or more functions to assist with the user query. Function output is sent back to the API, which then generates a natural language response based on the data.
 ```csharp
 builder.Services.AddPredictionGuardClient(config["ApiKey"])
     .UseFunctionInvocation();
 
-MethodInfo getWeatherMethod = ToolBuilder.GetMethod<WeatherService>("GetWeather");
+MethodInfo getForecastMethod = ToolBuilder.GetMethod<WeatherService>("GetForecast");
 ChatOptions chatOptions = new()
 {
-    Tools = [ getWeatherMethod ]
+    Tools = [ getForecastMethod ]
 };
 
 var predictionGuardClient = app.Services.GetRequiredService<PredictionGuardClient>();
 
-var responseText = await predictionGuardClient.CompleteAsync("Do I need an umbrella in Nantes?", chatOptions);
+var responseText = await predictionGuardClient.CompleteAsync("Do I need an umbrella today in Nantes?", chatOptions);
 
-[Description("Gets the weather")]
-static string GetWeather(string location)
+public class Weather
 {
-    return Random.Shared.NextDouble() > 0.5 ? $"It's sunny in {location}" : $"It's raining in {location}";
+    public int Day { get; set; }
+    public string Summary { get; set; }
+    public string Location { get; set; }
+}
+
+[Description("Gets a weather forecast for the given number of days")]
+public List<Weather> GetForecast(string location, int numDays)
+{
+    List<Weather> forecast = new();
+    for (int i = 0; i < numDays; i++)
+    {
+        forecast.Add(new Weather() { Day = i, Summary = Random.Shared.NextDouble() > 0.5 ? "Sunny" : "Rainy", Location = location });
+    }
+    return forecast;
 }
 ```

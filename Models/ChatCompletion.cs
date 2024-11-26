@@ -3,18 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace PredictionGuard.Models
 {
-    public enum ChatCompletionResponseType
-    {
-        Text,
-        Function
-    }
-    public class ChatCompletionResult
-    {
-        public ChatCompletionResponseType Type { get; set; }
-        public string Text { get; set; }
-        public List<object> FunctionResults { get; set; }
-    }
-
     public class ChatCompletion
     {
         [JsonPropertyName("id")]

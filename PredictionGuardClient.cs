@@ -28,37 +28,16 @@ public class PredictionGuardClient
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
     }
 
-    public async IAsyncEnumerable<ChatCompletionResult> CompleteStreamingAsync(string userInput, ChatOptions options = null)
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(string input, ChatOptions options = null)
     {
-        if (EnableFunctionInvocation && !_messages.Any(m => m.Role == ChatRole.System))
-        {
-            _messages.Add(ToolBuilder.CreateSystemMessage(options?.Tools));
-        }
-        _messages.Add(new ChatMessage(ChatRole.User, userInput));
+        CheckAddSystemMessage(options);
+        _messages.Add(new ChatMessage(ChatRole.User, input));
 
-        var request = new ChatRequest
-        {
-            Model = _options.Model,
-            Messages = _messages,
-            Stream = true,
-        };
-        var tools = options?.Tools?.Select(method => ToolBuilder.ConstructToolFromMethod(method)).ToList();
+        var chatRequest = BuildChatRequest(true, options);
+        var apiResponse = await SendChatCompletionRequest(chatRequest);
+        var apiResponseText = new StringBuilder();
 
-        if (tools != null)
-            request.Tools = tools;
-
-        var requestJson = JsonSerializer.Serialize(request);
-
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_options.Endpoint}chat/completions")
-        {
-            Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-        };
-
-        var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
-        response.EnsureSuccessStatusCode();
-
-        var responseText = new StringBuilder();
-        using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var responseStream = await apiResponse.Content.ReadAsStreamAsync();
         using var streamReader = new StreamReader(responseStream);
         string line;
         while ((line = await streamReader.ReadLineAsync()) != null)
@@ -69,59 +48,97 @@ public class PredictionGuardClient
                 if (jsonData == "[DONE]") break;
 
                 var chunk = JsonSerializer.Deserialize<ChatCompletion>(jsonData);
-                if (chunk != null && chunk.Choices != null)
+                if (chunk?.Choices != null)
                 {
                     foreach (var choice in chunk.Choices)
                     {
-                        if (choice.Delta != null && choice.Delta.Content != null)
+                        if (choice.Delta?.Content != null)
                         {
-                            responseText.Append(choice.Delta.Content);
-                            yield return new ChatCompletionResult
-                            {
-                                Type = ChatCompletionResponseType.Text,
-                                Text = choice.Delta.Content
-                            };
+                            apiResponseText.Append(choice.Delta.Content);
+                            yield return choice.Delta.Content;
                         }
                     }
                 }
             }
         }
+        var assistantResponse = new ChatMessage(ChatRole.Assistant, apiResponseText.ToString());
+        _messages.Add(assistantResponse);
 
         if (EnableFunctionInvocation)
         {
-            var results = CheckForFunctionCalls(responseText.ToString(), options);
+            var results = CheckForFunctionCalls(apiResponseText.ToString(), options);
             if (results.Count > 0)
             {
-                yield return new ChatCompletionResult
+                input = string.Empty;
+                foreach (var result in results)
                 {
-                    Type = ChatCompletionResponseType.Function,
-                    FunctionResults = results
-                };
+                    input += $"<tool_response>{JsonSerializer.Serialize(result)}</tool_response>";
+                }
+                _messages.Add(new ChatMessage(ChatRole.User, input));
+                chatRequest = BuildChatRequest(false, options);
+                apiResponse = await SendChatCompletionRequest(chatRequest);
+                apiResponseText = new StringBuilder(await apiResponse.Content.ReadAsStringAsync());
+                assistantResponse = ProcessResponse(apiResponseText.ToString(), options);
+                _messages.Add(assistantResponse);
+                yield return assistantResponse.Content;
             }
         }
-
-        _messages.Add(new ChatMessage(ChatRole.Assistant, responseText.ToString()));
     }
 
-    public async Task<ChatCompletionResult> CompleteAsync(string userInput, ChatOptions options = null)
+    public async Task<string> CompleteAsync(string input, ChatOptions options = null)
+    {
+        CheckAddSystemMessage(options);
+        _messages.Add(new ChatMessage(ChatRole.User, input));
+
+        var chatRequest = BuildChatRequest(false, options);
+        var apiResponse = await SendChatCompletionRequest(chatRequest);
+        var apiResponseText = await apiResponse.Content.ReadAsStringAsync();
+        var assistantResponse = ProcessResponse(apiResponseText, options);
+        _messages.Add(assistantResponse);
+        if (EnableFunctionInvocation)
+        {
+            var results = CheckForFunctionCalls(assistantResponse.Content, options);
+            if (results.Count > 0)
+            {
+                input = string.Empty;
+                foreach (var result in results)
+                {
+                    input += $"<tool_response>{JsonSerializer.Serialize(result)}</tool_response>";
+                }
+                _messages.Add(new ChatMessage(ChatRole.User, input));
+                chatRequest = BuildChatRequest(false, options);
+                apiResponse = await SendChatCompletionRequest(chatRequest);
+                apiResponseText = await apiResponse.Content.ReadAsStringAsync();
+                assistantResponse = ProcessResponse(apiResponseText.ToString(), options);
+                _messages.Add(assistantResponse);
+                return assistantResponse.Content;
+            }
+        }
+        return assistantResponse.Content;
+    }
+
+    private void CheckAddSystemMessage(ChatOptions options = null)
     {
         if (EnableFunctionInvocation && !_messages.Any(m => m.Role == ChatRole.System))
         {
             _messages.Add(ToolBuilder.CreateSystemMessage(options?.Tools));
         }
-        _messages.Add(new ChatMessage(ChatRole.User, userInput));
+    }
 
+    private ChatRequest BuildChatRequest(bool stream = false, ChatOptions options = null)
+    {
         var request = new ChatRequest
         {
             Model = _options.Model,
             Messages = _messages,
-            Stream = false,
+            Stream = stream,
+            Tools = options?.Tools?.Select(ToolBuilder.ConstructToolFromMethod).ToList()
         };
-        var tools = options?.Tools?.Select(method => ToolBuilder.ConstructToolFromMethod(method)).ToList();
+        return request;
+    }
 
-        if (tools != null)
-            request.Tools = tools;
-
+    private async Task<HttpResponseMessage> SendChatCompletionRequest(ChatRequest request)
+    {
         var requestJson = JsonSerializer.Serialize(request);
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_options.Endpoint}chat/completions")
@@ -129,51 +146,26 @@ public class PredictionGuardClient
             Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
         };
 
-        var httpResponse = await _httpClient.SendAsync(httpRequest);
-        httpResponse.EnsureSuccessStatusCode();
-
-        var responseText = await httpResponse.Content.ReadAsStringAsync();
-        var result = ProcessResponse(responseText, options);
-
-        if (result.Type == ChatCompletionResponseType.Text)
-            _messages.Add(new ChatMessage(ChatRole.Assistant, result.Text));
-
-        return result;
+        var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+        return response;
     }
 
-
-    private ChatCompletionResult ProcessResponse(string responseText, ChatOptions options)
+    private ChatMessage ProcessResponse(string responseText, ChatOptions options)
     {
         var completionResponse = JsonSerializer.Deserialize<ChatCompletion>(responseText);
-        var chatCompletionResult = new ChatCompletionResult();
 
-        if (completionResponse != null && completionResponse.Choices != null)
+        if (completionResponse?.Choices != null)
         {
             foreach (var choice in completionResponse.Choices)
             {
-                if (choice.Message != null && choice.Message.Content != null)
+                if (choice.Message?.Content != null)
                 {
-                    if (EnableFunctionInvocation)
-                    {
-                        var results = CheckForFunctionCalls(choice.Message.Content, options);
-                        if (results.Count > 0) //at least one non-void function called
-                        {
-                            chatCompletionResult.Type = ChatCompletionResponseType.Function;
-                            chatCompletionResult.FunctionResults = results;
-                            return chatCompletionResult;
-                        }
-                    }
-
-                    chatCompletionResult.Type = ChatCompletionResponseType.Text;
-                    chatCompletionResult.Text = choice.Message.Content;
-                    return chatCompletionResult; //no functions called, return the message content
+                    return new ChatMessage(ChatRole.Assistant, choice.Message.Content);
                 }
             }
         }
-
-        chatCompletionResult.Type = ChatCompletionResponseType.Text;
-        chatCompletionResult.Text = string.Empty;
-        return chatCompletionResult;
+        return new ChatMessage(ChatRole.Assistant, string.Empty);
     }
 
     private List<object> CheckForFunctionCalls(string content, ChatOptions options)
@@ -212,14 +204,7 @@ public class PredictionGuardClient
                 {
                     try
                     {
-                        if (parameters[i].ParameterType == typeof(string))
-                        {
-                            args[i] = value.ToString();
-                        }
-                        else
-                        {
-                            args[i] = JsonSerializer.Deserialize(value.ToString(), parameters[i].ParameterType);
-                        }
+                        args[i] = parameters[i].ParameterType == typeof(string) ? value.ToString() : JsonSerializer.Deserialize(value.ToString(), parameters[i].ParameterType);
                     }
                     catch (Exception ex)
                     {
@@ -239,8 +224,7 @@ public class PredictionGuardClient
                 }
             }
 
-            var result = method.Invoke(instance, args);
-            return result;
+            return method.Invoke(instance, args);
         }
         return null;
     }
