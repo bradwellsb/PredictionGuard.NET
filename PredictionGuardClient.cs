@@ -47,18 +47,28 @@ public class PredictionGuardClient
                 var jsonData = line.Substring(6);
                 if (jsonData == "[DONE]") break;
 
-                var chunk = JsonSerializer.Deserialize<ChatCompletion>(jsonData);
-                if (chunk?.Choices != null)
+                string content = null;
+                try
                 {
-                    foreach (var choice in chunk.Choices)
+                    var chunk = JsonSerializer.Deserialize<ChatCompletion>(jsonData);
+                    if (chunk?.Choices != null)
                     {
-                        if (choice.Delta?.Content != null)
+                        foreach (var choice in chunk.Choices)
                         {
-                            apiResponseText.Append(choice.Delta.Content);
-                            yield return choice.Delta.Content;
+                            if (choice.Delta?.Content != null)
+                            {
+                                content = choice.Delta.Content;
+                                apiResponseText.Append(content);
+                            }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deserializing chunk: {ex.Message}");
+                }
+                if (content != null)
+                    yield return content;
             }
         }
         var assistantResponse = new ChatMessage(ChatRole.Assistant, apiResponseText.ToString());
@@ -153,17 +163,24 @@ public class PredictionGuardClient
 
     private ChatMessage ProcessResponse(string responseText, ChatOptions options)
     {
-        var completionResponse = JsonSerializer.Deserialize<ChatCompletion>(responseText);
-
-        if (completionResponse?.Choices != null)
+        try
         {
-            foreach (var choice in completionResponse.Choices)
+            var completionResponse = JsonSerializer.Deserialize<ChatCompletion>(responseText);
+
+            if (completionResponse?.Choices != null)
             {
-                if (choice.Message?.Content != null)
+                foreach (var choice in completionResponse.Choices)
                 {
-                    return new ChatMessage(ChatRole.Assistant, choice.Message.Content);
+                    if (choice.Message?.Content != null)
+                    {
+                        return new ChatMessage(ChatRole.Assistant, choice.Message.Content);
+                    }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deserializing response: {ex.Message}");
         }
         return new ChatMessage(ChatRole.Assistant, string.Empty);
     }
@@ -176,15 +193,25 @@ public class PredictionGuardClient
         foreach (Match match in functionCallMatches)
         {
             var functionCallJson = match.Groups[1].Value.Replace("\\n", "").Trim();
-            var functionCall = JsonSerializer.Deserialize<FunctionCall>(functionCallJson);
-
-            if (functionCall != null)
+            try
             {
-                var result = InvokeTool(functionCall, options?.Tools);
-                if (result != null)
+                var functionCall = JsonSerializer.Deserialize<FunctionCall>(functionCallJson);
+                if (functionCall != null)
                 {
-                    functionCalls.Add(result);
+                    var result = InvokeTool(functionCall, options?.Tools);
+                    if (result != null)
+                    {
+                        functionCalls.Add(result);
+                    }
                 }
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"Error deserializing function call: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing function call: {ex.Message}");
             }
         }
 
@@ -224,7 +251,14 @@ public class PredictionGuardClient
                 }
             }
 
-            return method.Invoke(instance, args);
+            try
+            {
+                return method.Invoke(instance, args);
+            }
+            catch
+            {
+                throw;
+            }
         }
         return null;
     }
