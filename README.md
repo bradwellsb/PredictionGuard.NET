@@ -17,10 +17,10 @@ builder.Services.AddPredictionGuardClient(config["ApiKey"]);
 Customize the endpoint, specify a model, etc.
 ```csharp
 builder.Services.AddPredictionGuardClient(config["ApiKey"], options =>
-    {
-        options.Endpoint = new Uri(config["Endpoint"]);
-        options.Model = config["Model"];
-    });
+{
+    options.Endpoint = new Uri(config["Endpoint"]);
+    options.Model = config["Model"];
+});
 ```
 
 ### Retrieve the PredictionGuard Client from the Service Container through dependency injection
@@ -76,8 +76,8 @@ var responseText = await predictionGuardClient.CompleteAsync("Do I need an umbre
 public class Weather
 {
     public int Day { get; set; }
-    public string Summary { get; set; }
-    public string Location { get; set; }
+    public string Location { get; set; }    
+    public string Summary { get; set; }    
 }
 
 [Description("Gets a weather forecast for the given number of days")]
@@ -86,7 +86,7 @@ public List<Weather> GetForecast(string location, int numDays)
     List<Weather> forecast = new();
     for (int i = 0; i < numDays; i++)
     {
-        forecast.Add(new Weather() { Day = i, Summary = Random.Shared.NextDouble() > 0.5 ? "Sunny" : "Rainy", Location = location });
+        forecast.Add(new Weather() { Day = i, Location = location, Summary = Random.Shared.NextDouble() > 0.5 ? "Sunny" : "Rainy" });
     }
     return forecast;
 }
