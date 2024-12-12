@@ -7,7 +7,7 @@ using PredictionGuard.Config;
 using System;
 using System.Net.Http;
 
-namespace PredictionGuardFunctionCalling.Extensions
+namespace PredictionGuard.Extensions
 {
     public static class ServiceCollectionExtensions
     {
