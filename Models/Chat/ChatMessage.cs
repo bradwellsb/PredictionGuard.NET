@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PredictionGuard.Models
+namespace PredictionGuard.Models.Chat
 {
     public class ChatMessage
     {

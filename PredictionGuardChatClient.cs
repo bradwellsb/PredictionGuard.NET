@@ -12,15 +12,16 @@ using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using System;
+using PredictionGuard.Models.Chat;
 
-public class PredictionGuardClient
+public class PredictionGuardChatClient
 {
-    private readonly PredictionGuardClientOptions _options;
+    private readonly PredictionGuardChatClientOptions _options;
     private readonly HttpClient _httpClient;
     private readonly List<ChatMessage> _messages = new List<ChatMessage>();
     public static bool EnableFunctionInvocation { get; set; } = false;
 
-    public PredictionGuardClient(PredictionGuardClientOptions options, IHttpClientFactory httpClientFactory)
+    public PredictionGuardChatClient(PredictionGuardChatClientOptions options, IHttpClientFactory httpClientFactory)
     {
         _options = options;
         _httpClient = httpClientFactory.CreateClient();

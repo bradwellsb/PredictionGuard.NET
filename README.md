@@ -6,61 +6,63 @@ PredictionGuard.NET is a .NET Standard 2.1 wrapper for the PredictionGuard API. 
 
 - **Chat Completions**: Generate text completions based on input prompts.
 - **Function Calling**: Invoke functions based on chat input.
+- **Embeddings**: Generate embeddings for text and image inputs.
 
 ## Usage
-### Add the PredictionGuard client to the service container
+### Chat Completions
+#### Add the PredictionGuard Chat Client to the service container
 ```csharp
-builder.Services.AddPredictionGuardClient(config["ApiKey"]);
+builder.Services.AddPredictionGuardChatClient(config["ApiKey"]);
 ```
 
-### Add the PredictionGuard Client with Options
+#### Add the PredictionGuard Chat Client with Options
 Customize the endpoint, specify a model, etc.
 ```csharp
-builder.Services.AddPredictionGuardClient(config["ApiKey"], options =>
+builder.Services.AddPredictionGuardChatClient(config["ApiKey"], options =>
 {
     options.Endpoint = new Uri(config["Endpoint"]);
     options.Model = config["Model"];
 });
 ```
 
-### Retrieve the PredictionGuard Client from the Service Container through dependency injection
+#### Retrieve the PredictionGuard Chat Client from the Service Container through dependency injection
 Console Application
 ```csharp
-var predictionGuardClient = app.Services.GetRequiredService<PredictionGuardClient>();
+var predictionGuardChatClient = app.Services.GetRequiredService<PredictionGuardChatClient>();
 ```
 
 Blazor
 ```csharp
-@inject PredictionGuardClient PredictionGuardClient
+@inject PredictionGuardChatClient PredictionGuardChatClient
 ```
 
 API controller
 ```csharp
-private readonly PredictionGuardClient _predictionGuardClient;
+private readonly PredictionGuardChatClient _predictionGuardChatClient;
 
-public MyController(PredictionGuardClient predictionGuardClient)
+public MyController(PredictionGuardChatClient predictionGuardChatClient)
 {
-    _predictionGuardClient = predictionGuardClient;
+    _predictionGuardChatClient = predictionGuardChatClient;
 }
 ```
 
-### Generate Chat Completions
+#### Generate Chat Completions
 ```csharp
-var responseText = await predictionGuardClient.CompleteAsync(input);
+var responseText = await predictionGuardChatClient.CompleteAsync(input);
 ```
 
-### Generate Chat Completions with Streaming
+#### Generate Chat Completions with Streaming
 ```csharp
-await foreach (var chunk in predictionGuardClient.CompleteStreamingAsync(input))
+await foreach (var chunk in predictionGuardChatClient.CompleteStreamingAsync(input))
 {
     Console.Write(chunk);
 }
 ```
 
-### Enable Function Calling and Make Tools Available
+#### Enable Function Calling and Make Tools Available
 The library is capable of invoking one or more functions to assist with the user query. Function output is sent back to the API, which then generates a natural language response based on the data.
 ```csharp
-builder.Services.AddPredictionGuardClient(config["ApiKey"])
+builder.Services.AddPredictionGuardChatClient(config["ApiKey"])
     .UseFunctionInvocation();
 
 MethodInfo getForecastMethod = ToolBuilder.GetMethod<WeatherService>("GetForecast");
@@ -69,9 +71,9 @@ ChatOptions chatOptions = new()
     Tools = [ getForecastMethod ]
 };
 
-var predictionGuardClient = app.Services.GetRequiredService<PredictionGuardClient>();
+var predictionGuardChatClient = app.Services.GetRequiredService<PredictionGuardChatClient>();
 
-var responseText = await predictionGuardClient.CompleteAsync("Do I need an umbrella today in Nantes?", chatOptions);
+var responseText = await predictionGuardChatClient.CompleteAsync("Do I need an umbrella today in Nantes?", chatOptions);
 
 public class Weather
 {
@@ -90,4 +92,46 @@ public List<Weather> GetForecast(string location, int numDays)
     }
     return forecast;
 }
+```
+
+### Embeddings
+#### Add the PredictionGuard Embeddings Client to the service container
+```csharp
+builder.Services.AddPredictionGuardEmbeddingsClient(config["ApiKey"]);
+```
+
+#### Add the PredictionGuard Embeddings Client with Options
+Customize the endpoint, specify a model, etc.
+```csharp
+builder.Services.AddPredictionGuardEmbeddingsClient(config["ApiKey"], options =>
+{
+    options.Endpoint = new Uri(config["Endpoint"]);
+    options.Model = config["Model"];
+});
+```
+
+#### Generate Embeddings from a Single Text Input
+```csharp
+var embeddings = await predictionGuardEmbeddingsClient.GenerateEmbeddingsAsync("Your input text here");
+```
+
+#### Generate Embeddings from Multiple Inputs
+```csharp
+var inputs = new List<EmbeddingInput>
+{
+    new EmbeddingInput
+    {
+        Text = "Your input text here"
+    },
+    new EmbeddingInput
+    {
+        Text = "Another input"
+    }
+};
+var embeddings = await predictionGuardEmbeddingsClient.GenerateEmbeddingsAsync(inputs);
+    foreach (var embeddingData in embeddings)
+    {
+        Console.WriteLine($"Index: {embeddingData.Index}");
+        Console.WriteLine($"Embedding: {string.Join(", ", embeddingData.Embedding)}");
+    }
 ```

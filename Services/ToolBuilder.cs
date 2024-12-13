@@ -1,4 +1,5 @@
 ﻿using PredictionGuard.Models;
+using PredictionGuard.Models.Chat;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;

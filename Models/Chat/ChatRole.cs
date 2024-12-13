@@ -1,4 +1,4 @@
-﻿namespace PredictionGuard.Models
+﻿namespace PredictionGuard.Models.Chat
 {
     public class ChatRole
     {

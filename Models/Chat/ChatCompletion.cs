@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace PredictionGuard.Models
+namespace PredictionGuard.Models.Chat
 {
     public class ChatCompletion
     {
@@ -49,5 +49,5 @@ namespace PredictionGuard.Models
 
         [JsonPropertyName("content")]
         public string Content { get; set; }
-    }    
+    }
 }

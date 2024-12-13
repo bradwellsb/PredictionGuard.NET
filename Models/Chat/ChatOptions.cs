@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 
-namespace PredictionGuard.Models
+namespace PredictionGuard.Models.Chat
 {
     public class ChatOptions
     {
