@@ -1,15 +1,11 @@
-﻿using System.Net.Http.Headers;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Text;
-using PredictionGuard.Config;
-using PredictionGuard.Models;
-using PredictionGuard.Services;
-using System.Net.Http;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using PredictionGuard.Config;
 using PredictionGuard.Models.Embeddings;
+using System.Collections.Generic;
+using System.Net.Http.Headers;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text;
+using System.Threading.Tasks;
 using System.Linq;
 
 public class PredictionGuardEmbeddingsClient
@@ -24,6 +20,7 @@ public class PredictionGuardEmbeddingsClient
         _httpClient.BaseAddress = _options.Endpoint;
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
     }
+
     public async Task<float[]> GenerateEmbeddingsAsync(string input)
     {
         var inputs = new List<EmbeddingInput>
@@ -43,6 +40,22 @@ public class PredictionGuardEmbeddingsClient
             Input = inputs
         };
 
+        return await SendEmbeddingsRequestAsync(request);
+    }
+
+    public async Task<List<EmbeddingData>> GenerateEmbeddingsAsync(IEnumerable<string> inputs)
+    {
+        var request = new EmbeddingsRequest
+        {
+            Model = _options.Model,
+            Input = inputs
+        };
+
+        return await SendEmbeddingsRequestAsync(request);
+    }
+
+    private async Task<List<EmbeddingData>> SendEmbeddingsRequestAsync(EmbeddingsRequest request)
+    {
         var requestJson = JsonSerializer.Serialize(request);
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_options.Endpoint}embeddings")
