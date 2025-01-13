@@ -15,6 +15,9 @@ namespace PredictionGuard.Models.Chat
         [JsonPropertyName("stream")]
         public bool Stream { get; set; }
 
+        [JsonPropertyName("max_tokens")] //Deprecated. Should use max_completion_tokens, but not working
+        public int MaxCompletionTokens { get; set; }
+
         [JsonPropertyName("tools")]
         public List<Tool> Tools { get; set; }
     }

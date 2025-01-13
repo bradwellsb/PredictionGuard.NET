@@ -143,7 +143,8 @@ public class PredictionGuardChatClient
             Model = _options.Model,
             Messages = _messages,
             Stream = stream,
-            Tools = options?.Tools?.Select(ToolBuilder.ConstructToolFromMethod).ToList()
+            Tools = options?.Tools?.Select(ToolBuilder.ConstructToolFromMethod).ToList(),
+            MaxCompletionTokens = _options.MaxCompletionTokens
         };
         return request;
     }
